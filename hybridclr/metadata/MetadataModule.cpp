@@ -21,6 +21,7 @@
 #include "ConsistentAOTHomologousImage.h"
 #include "SuperSetAOTHomologousImage.h"
 #include "MetadataPool.h"
+#include "UnifiedMetadataProvider.h"
 
 using namespace il2cpp;
 
@@ -37,13 +38,14 @@ namespace metadata
         MetadataPool::Initialize();
         InterpreterImage::Initialize();
         Assembly::InitializePlaceHolderAssemblies();
+        UnifiedMetadataProvider::Initialize();
     }
 
     Image* MetadataModule::GetUnderlyingInterpreterImage(const MethodInfo* methodInfo)
     {
-        return metadata::IsInterpreterMethod(methodInfo) ? hybridclr::metadata::MetadataModule::GetImage(methodInfo->klass)
-            : (metadata::Image*)hybridclr::metadata::AOTHomologousImage::FindImageByAssembly(
-                methodInfo->klass->rank ? il2cpp_defaults.corlib->assembly : methodInfo->klass->image->assembly);
+        // 使用统一元数据提供者替代 AOT 同源镜像机制
+        const Il2CppAssembly* ass = methodInfo->klass->rank ? il2cpp_defaults.corlib->assembly : methodInfo->klass->image->assembly;
+        return UnifiedMetadataProvider::GetImageForAssembly(ass);
     }
 }
 }

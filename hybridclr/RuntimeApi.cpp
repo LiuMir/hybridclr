@@ -8,6 +8,7 @@
 
 #include "metadata/MetadataModule.h"
 #include "metadata/MetadataUtil.h"
+#include "metadata/UnifiedMetadataProvider.h"
 #include "interpreter/InterpreterModule.h"
 #include "RuntimeConfig.h"
 
@@ -15,6 +16,7 @@ namespace hybridclr
 {
 	void RuntimeApi::RegisterInternalCalls()
 	{
+		// 保留 LoadMetadataForAOTAssembly 以保持向后兼容性，但内部使用统一元数据提供者
 		il2cpp::vm::InternalCalls::Add("HybridCLR.RuntimeApi::LoadMetadataForAOTAssembly(System.Byte[],HybridCLR.HomologousImageMode)", (Il2CppMethodPointer)LoadMetadataForAOTAssembly);
 		il2cpp::vm::InternalCalls::Add("HybridCLR.RuntimeApi::GetRuntimeOption(HybridCLR.RuntimeOptionId)", (Il2CppMethodPointer)GetRuntimeOption);
 		il2cpp::vm::InternalCalls::Add("HybridCLR.RuntimeApi::SetRuntimeOption(HybridCLR.RuntimeOptionId,System.Int32)", (Il2CppMethodPointer)SetRuntimeOption);
@@ -28,7 +30,11 @@ namespace hybridclr
 		{
 			il2cpp::vm::Exception::RaiseNullReferenceException();
 		}
-		return (int32_t)hybridclr::metadata::Assembly::LoadMetadataForAOTAssembly(il2cpp::vm::Array::GetFirstElementAddress(dllBytes), il2cpp::vm::Array::GetByteLength(dllBytes), (hybridclr::metadata::HomologousImageMode)mode);
+		
+		// 使用完全泛型共享机制，不再需要加载 AOT 同源镜像
+		// 统一元数据提供者会自动处理 AOT 程序集的元数据访问
+		// 这里直接返回成功，因为元数据访问已经通过 UnifiedMetadataProvider 统一处理
+		return (int32_t)hybridclr::metadata::LoadImageErrorCode::OK;
 	}
 
 	int32_t RuntimeApi::GetRuntimeOption(int32_t optionId)
@@ -54,15 +60,12 @@ namespace hybridclr
 		{
 			return false;
 		}
-		metadata::Image* image = metadata::MetadataModule::GetImage(klass->image);
+		// 使用统一元数据提供者获取镜像
+		metadata::Image* image = hybridclr::metadata::UnifiedMetadataProvider::GetImageForAssembly(
+			klass->rank ? il2cpp_defaults.corlib->assembly : klass->image->assembly);
 		if (!image)
 		{
-			(metadata::Image*)hybridclr::metadata::AOTHomologousImage::FindImageByAssembly(
-				klass->rank ? il2cpp_defaults.corlib->assembly : klass->image->assembly);
-			if (!image)
-			{
-				return false;
-			}
+			return false;
 		}
 		for (uint16_t i = 0; i < klass->method_count; i++)
 		{

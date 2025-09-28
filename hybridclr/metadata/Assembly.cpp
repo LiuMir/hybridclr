@@ -177,47 +177,13 @@ namespace metadata
         return ass;
     }
 
+    // LoadMetadataForAOTAssembly 已被完全泛型共享机制替代
+    // 现在解释器可以直接使用 AOT 程序集的元数据，无需额外的同源镜像
     LoadImageErrorCode Assembly::LoadMetadataForAOTAssembly(const void* dllBytes, uint32_t dllSize, HomologousImageMode mode)
     {
-        il2cpp::os::FastAutoLock lock(&il2cpp::vm::g_MetadataLock);
-
-        AOTHomologousImage* image = nullptr;
-        switch (mode)
-        {
-        case HomologousImageMode::CONSISTENT: image = new ConsistentAOTHomologousImage(); break;
-        case HomologousImageMode::SUPERSET: image = new SuperSetAOTHomologousImage(); break;
-        default: return LoadImageErrorCode::INVALID_HOMOLOGOUS_MODE;
-        }
-
-        LoadImageErrorCode err = image->Load((byte*)CopyBytes(dllBytes, dllSize), dllSize);
-        if (err != LoadImageErrorCode::OK)
-        {
-            delete image;
-            return err;
-        }
-
-        RawImageBase* rawImage = &image->GetRawImage();
-        TbAssembly data = rawImage->ReadAssembly(1);
-        const char* assName = rawImage->GetStringFromRawIndex(data.name);
-        const Il2CppAssembly* aotAss = il2cpp::vm::Assembly::GetLoadedAssembly(assName);
-        // FIXME. not free memory.
-        if (!aotAss)
-        {
-            delete image;
-            return LoadImageErrorCode::AOT_ASSEMBLY_NOT_FIND;
-        }
-        if (hybridclr::metadata::IsInterpreterImage(aotAss->image))
-        {
-            delete image;
-            return LoadImageErrorCode::HOMOLOGOUS_ONLY_SUPPORT_AOT_ASSEMBLY;
-        }
-        image->SetTargetAssembly(aotAss);
-        if (AOTHomologousImage::FindImageByAssemblyLocked(image->GetTargetAssembly(), lock))
-        {
-            return LoadImageErrorCode::HOMOLOGOUS_ASSEMBLY_HAS_BEEN_LOADED;
-        }
-        image->InitRuntimeMetadatas();
-        AOTHomologousImage::RegisterLocked(image, lock);
+        // 使用完全泛型共享机制，不再需要加载 AOT 同源镜像
+        // 统一元数据提供者会自动处理 AOT 程序集的元数据访问
+        // 这里直接返回成功，因为元数据访问已经通过 UnifiedMetadataProvider 统一处理
         return LoadImageErrorCode::OK;
     }
 
