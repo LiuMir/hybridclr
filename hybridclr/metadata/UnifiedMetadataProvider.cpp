@@ -331,8 +331,6 @@ namespace metadata
             TableType tableType = DecodeTokenTableType(token);
             uint32_t rowIndex = DecodeTokenRowIndex(token);
             
-            // 调试信息已移除，直接进行方法解析
-            
             if (tableType == TableType::METHOD)
             {
                 const Il2CppMethodDefinition* methodDef = il2cpp::vm::GlobalMetadata::GetMethodDefinitionFromIndex(rowIndex);
@@ -341,22 +339,13 @@ namespace metadata
                 il2cpp::vm::Class::SetupMethods(klass);
                 
                 // 通过 token 匹配方法
-                char debugMsg2[256];
-                sprintf_s(debugMsg2, "Searching in class %s, method_count=%d", klass->name, klass->method_count);
-                il2cpp::vm::Exception::Raise(il2cpp::vm::Exception::GetNotSupportedException(debugMsg2));
                 for (uint16_t i = 0; i < klass->method_count; i++)
                 {
                     const MethodInfo* method = klass->methods[i];
                     if (method)
                     {
-                        char debugMsg3[256];
-                        sprintf_s(debugMsg3, "Method[%d]: %s, token=0x%x", i, method->name, method->token);
-                        il2cpp::vm::Exception::Raise(il2cpp::vm::Exception::GetNotSupportedException(debugMsg3));
                         if (method->token == token)
                         {
-                            char debugMsg4[256];
-                            sprintf_s(debugMsg4, "Found method by token: %s", method->name);
-                            il2cpp::vm::Exception::Raise(il2cpp::vm::Exception::GetNotSupportedException(debugMsg4));
                             // 处理泛型方法实例化
                             if (methodContainer && !method->is_inflated)
                             {
@@ -381,22 +370,13 @@ namespace metadata
                 il2cpp::vm::Class::SetupMethods(klass);
                 
                 // 通过 token 匹配方法
-                char debugMsg2[256];
-                sprintf_s(debugMsg2, "Searching in class %s, method_count=%d", klass->name, klass->method_count);
-                il2cpp::vm::Exception::Raise(il2cpp::vm::Exception::GetNotSupportedException(debugMsg2));
                 for (uint16_t i = 0; i < klass->method_count; i++)
                 {
                     const MethodInfo* method = klass->methods[i];
                     if (method)
                     {
-                        char debugMsg3[256];
-                        sprintf_s(debugMsg3, "Method[%d]: %s, token=0x%x", i, method->name, method->token);
-                        il2cpp::vm::Exception::Raise(il2cpp::vm::Exception::GetNotSupportedException(debugMsg3));
                         if (method->token == token)
                         {
-                            char debugMsg4[256];
-                            sprintf_s(debugMsg4, "Found method by token: %s", method->name);
-                            il2cpp::vm::Exception::Raise(il2cpp::vm::Exception::GetNotSupportedException(debugMsg4));
                             // 处理泛型方法实例化
                             if (methodContainer && !method->is_inflated)
                             {
