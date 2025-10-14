@@ -217,9 +217,9 @@ namespace metadata
             return MetadataModule::GetImage(ass->image);
         }
 
-        // 对于 AOT 程序集，创建 AOT 元数据镜像适配器
-        // 注意：这里创建的对象需要由调用者管理生命周期
-        return new AOTMetadataImage(ass);
+        // 对于 AOT 程序集，返回 nullptr
+        // AOT 程序集的方法不需要通过 Image 来解析
+        return nullptr;
     }
 
     const Il2CppTypeDefinition* UnifiedMetadataProvider::GetTypeDefinition(const Il2CppType* type)
@@ -312,15 +312,108 @@ namespace metadata
             return nullptr;
         }
 
-        Image* image = GetImageForAssembly(ass);
-        if (!image)
+        // 对于解释器程序集，使用 Image 对象解析 token
+        if (IsInterpreterAssembly(ass))
         {
-            return nullptr;
+            Image* image = MetadataModule::GetImage(ass->image);
+            if (!image)
+            {
+                return nullptr;
+            }
+
+            // 创建一个临时的 token 缓存
+            Token2RuntimeHandleMap tokenCache;
+            return image->GetMethodInfoFromToken(tokenCache, token, klassContainer, methodContainer, genericContext);
+        }
+        else
+        {
+            // 对于 AOT 程序集，直接使用 IL2CPP 的 GlobalMetadata 解析
+            TableType tableType = DecodeTokenTableType(token);
+            uint32_t rowIndex = DecodeTokenRowIndex(token);
+            
+            // 调试信息已移除，直接进行方法解析
+            
+            if (tableType == TableType::METHOD)
+            {
+                const Il2CppMethodDefinition* methodDef = il2cpp::vm::GlobalMetadata::GetMethodDefinitionFromIndex(rowIndex);
+                const Il2CppTypeDefinition* typeDef = (const Il2CppTypeDefinition*)il2cpp::vm::GlobalMetadata::GetTypeHandleFromIndex(methodDef->declaringType);
+                Il2CppClass* klass = il2cpp::vm::GlobalMetadata::GetTypeInfoFromHandle((Il2CppMetadataTypeHandle)typeDef);
+                il2cpp::vm::Class::SetupMethods(klass);
+                
+                // 通过 token 匹配方法
+                char debugMsg2[256];
+                sprintf_s(debugMsg2, "Searching in class %s, method_count=%d", klass->name, klass->method_count);
+                il2cpp::vm::Exception::Raise(il2cpp::vm::Exception::GetNotSupportedException(debugMsg2));
+                for (uint16_t i = 0; i < klass->method_count; i++)
+                {
+                    const MethodInfo* method = klass->methods[i];
+                    if (method)
+                    {
+                        char debugMsg3[256];
+                        sprintf_s(debugMsg3, "Method[%d]: %s, token=0x%x", i, method->name, method->token);
+                        il2cpp::vm::Exception::Raise(il2cpp::vm::Exception::GetNotSupportedException(debugMsg3));
+                        if (method->token == token)
+                        {
+                            char debugMsg4[256];
+                            sprintf_s(debugMsg4, "Found method by token: %s", method->name);
+                            il2cpp::vm::Exception::Raise(il2cpp::vm::Exception::GetNotSupportedException(debugMsg4));
+                            // 处理泛型方法实例化
+                            if (methodContainer && !method->is_inflated)
+                            {
+                                Il2CppGenericContext finalGenericContext = { 
+                                    genericContext ? genericContext->class_inst : nullptr, 
+                                    (const Il2CppGenericInst*)methodContainer 
+                                };
+                                return il2cpp::metadata::GenericMetadata::Inflate(method, &finalGenericContext);
+                            }
+                            return method;
+                        }
+                    }
+                }
+            }
+            else if (tableType == TableType::MEMBERREF)
+            {
+                // 对于 MemberRef，需要解析方法引用
+                // 使用 IL2CPP 的现有机制来解析
+                const Il2CppMethodDefinition* methodDef = il2cpp::vm::GlobalMetadata::GetMethodDefinitionFromIndex(rowIndex);
+                const Il2CppTypeDefinition* typeDef = (const Il2CppTypeDefinition*)il2cpp::vm::GlobalMetadata::GetTypeHandleFromIndex(methodDef->declaringType);
+                Il2CppClass* klass = il2cpp::vm::GlobalMetadata::GetTypeInfoFromHandle((Il2CppMetadataTypeHandle)typeDef);
+                il2cpp::vm::Class::SetupMethods(klass);
+                
+                // 通过 token 匹配方法
+                char debugMsg2[256];
+                sprintf_s(debugMsg2, "Searching in class %s, method_count=%d", klass->name, klass->method_count);
+                il2cpp::vm::Exception::Raise(il2cpp::vm::Exception::GetNotSupportedException(debugMsg2));
+                for (uint16_t i = 0; i < klass->method_count; i++)
+                {
+                    const MethodInfo* method = klass->methods[i];
+                    if (method)
+                    {
+                        char debugMsg3[256];
+                        sprintf_s(debugMsg3, "Method[%d]: %s, token=0x%x", i, method->name, method->token);
+                        il2cpp::vm::Exception::Raise(il2cpp::vm::Exception::GetNotSupportedException(debugMsg3));
+                        if (method->token == token)
+                        {
+                            char debugMsg4[256];
+                            sprintf_s(debugMsg4, "Found method by token: %s", method->name);
+                            il2cpp::vm::Exception::Raise(il2cpp::vm::Exception::GetNotSupportedException(debugMsg4));
+                            // 处理泛型方法实例化
+                            if (methodContainer && !method->is_inflated)
+                            {
+                                Il2CppGenericContext finalGenericContext = { 
+                                    genericContext ? genericContext->class_inst : nullptr, 
+                                    (const Il2CppGenericInst*)methodContainer 
+                                };
+                                return il2cpp::metadata::GenericMetadata::Inflate(method, &finalGenericContext);
+                            }
+                            return method;
+                        }
+                    }
+                }
+            }
         }
 
-        // 创建一个临时的 token 缓存
-        Token2RuntimeHandleMap tokenCache;
-        return image->GetMethodInfoFromToken(tokenCache, token, klassContainer, methodContainer, genericContext);
+        return nullptr;
     }
 
     const Il2CppType* UnifiedMetadataProvider::GetTypeFromToken(
@@ -334,16 +427,40 @@ namespace metadata
             return nullptr;
         }
 
-        Image* image = GetImageForAssembly(ass);
-        if (!image)
+        // 对于解释器程序集，使用 Image 对象解析
+        if (IsInterpreterAssembly(ass))
         {
-            return nullptr;
+            Image* image = GetImageForAssembly(ass);
+            if (!image)
+            {
+                return nullptr;
+            }
+
+            // 使用 ReadTypeFromToken 方法
+            TableType tableType = (TableType)(token >> 24);
+            uint32_t rowIndex = token & 0x00FFFFFF;
+            return image->ReadTypeFromToken(klassContainer, nullptr, tableType, rowIndex);
+        }
+        else
+        {
+            // 对于 AOT 程序集，直接使用 IL2CPP 的 GlobalMetadata 解析
+            TableType tableType = DecodeTokenTableType(token);
+            uint32_t rowIndex = DecodeTokenRowIndex(token);
+            
+            if (tableType == TableType::TYPEDEF)
+            {
+                const Il2CppTypeDefinition* typeDef = (const Il2CppTypeDefinition*)il2cpp::vm::GlobalMetadata::GetTypeHandleFromIndex(rowIndex);
+                Il2CppClass* klass = il2cpp::vm::GlobalMetadata::GetTypeInfoFromHandle((Il2CppMetadataTypeHandle)typeDef);
+                return &klass->byval_arg;
+            }
+            else if (tableType == TableType::TYPESPEC)
+            {
+                // 对于泛型类型，需要解析类型规范
+                return il2cpp::vm::GlobalMetadata::GetIl2CppTypeFromIndex(token);
+            }
         }
 
-        // 使用 ReadTypeFromToken 方法
-        TableType tableType = (TableType)(token >> 24);
-        uint32_t rowIndex = token & 0x00FFFFFF;
-        return image->ReadTypeFromToken(klassContainer, nullptr, tableType, rowIndex);
+        return nullptr;
     }
 
     bool UnifiedMetadataProvider::IsInterpreterAssembly(const Il2CppAssembly* ass)
@@ -390,198 +507,6 @@ namespace metadata
             key ^= (uint64_t)types[i] << (i % 8);
         }
         return key;
-    }
-
-    // ==================== AOTMetadataImage 实现 ====================
-
-    AOTMetadataImage::AOTMetadataImage(const Il2CppAssembly* assembly)
-        : _targetAssembly(assembly)
-    {
-    }
-
-    AOTMetadataImage::~AOTMetadataImage()
-    {
-    }
-
-    MethodBody* AOTMetadataImage::GetMethodBody(uint32_t token)
-    {
-        // AOT 方法没有 IL 方法体
-        return nullptr;
-    }
-
-    const Il2CppType* AOTMetadataImage::GetIl2CppTypeFromRawTypeDefIndex(uint32_t index)
-    {
-        const Il2CppTypeDefinition* typeDef = GetAOTTypeDefinition(index);
-        if (!typeDef)
-        {
-            return nullptr;
-        }
-
-        return il2cpp::vm::GlobalMetadata::GetIl2CppTypeFromIndex(typeDef->byvalTypeIndex);
-    }
-
-    Il2CppGenericContainer* AOTMetadataImage::GetGenericContainerByRawIndex(uint32_t index)
-    {
-        return GetAOTGenericContainer(index);
-    }
-
-    Il2CppGenericContainer* AOTMetadataImage::GetGenericContainerByTypeDefRawIndex(int32_t typeDefIndex)
-    {
-        const Il2CppTypeDefinition* typeDef = GetAOTTypeDefinition(typeDefIndex);
-        if (!typeDef)
-        {
-            return nullptr;
-        }
-
-        if (typeDef->genericContainerIndex != kGenericContainerIndexInvalid)
-        {
-            return GetAOTGenericContainer(typeDef->genericContainerIndex);
-        }
-
-        return nullptr;
-    }
-
-    const Il2CppMethodDefinition* AOTMetadataImage::GetMethodDefinitionFromRawIndex(uint32_t index)
-    {
-        return GetAOTMethodDefinition(index);
-    }
-
-    void AOTMetadataImage::ReadFieldRefInfoFromFieldDefToken(uint32_t rowIndex, FieldRefInfo& ret)
-    {
-        const Il2CppFieldDefinition* fieldDef = GetAOTFieldDefinition(rowIndex);
-        if (!fieldDef)
-        {
-            ret.field = nullptr;
-            return;
-        }
-
-        ret.field = fieldDef;
-        ret.containerType = il2cpp::vm::GlobalMetadata::GetIl2CppTypeFromIndex(fieldDef->typeIndex);
-    }
-
-    const Il2CppType* AOTMetadataImage::GetModuleIl2CppType(uint32_t moduleRowIndex, uint32_t typeNamespace, uint32_t typeName, bool raiseExceptionIfNotFound)
-    {
-        // 从 AOT 程序集中查找类型
-        const Il2CppImage* image = _targetAssembly->image;
-        for (uint32_t i = 0; i < image->typeCount; i++)
-        {
-            const Il2CppTypeDefinition* typeDef = (const Il2CppTypeDefinition*)il2cpp::vm::MetadataCache::GetAssemblyTypeHandle(image, i);
-            const char* name = il2cpp::vm::GlobalMetadata::GetStringFromIndex(typeDef->nameIndex);
-            const char* namespaze = il2cpp::vm::GlobalMetadata::GetStringFromIndex(typeDef->namespaceIndex);
-            const char* targetName = il2cpp::vm::GlobalMetadata::GetStringFromIndex(typeName);
-            const char* targetNamespace = il2cpp::vm::GlobalMetadata::GetStringFromIndex(typeNamespace);
-            
-            if (std::strcmp(name, targetName) == 0 && std::strcmp(namespaze, targetNamespace) == 0)
-            {
-                return il2cpp::vm::GlobalMetadata::GetIl2CppTypeFromIndex(typeDef->byvalTypeIndex);
-            }
-        }
-
-        if (raiseExceptionIfNotFound)
-        {
-            il2cpp::vm::Exception::Raise(il2cpp::vm::Exception::GetTypeLoadException("Type not found"));
-        }
-
-        return nullptr;
-    }
-
-    const Il2CppType* AOTMetadataImage::ReadTypeFromResolutionScope(uint32_t scope, uint32_t typeNamespace, uint32_t typeName)
-    {
-        // 简化实现，直接在当前程序集中查找
-        return GetModuleIl2CppType(0, typeNamespace, typeName, false);
-    }
-
-    const Il2CppTypeDefinition* AOTMetadataImage::GetAOTTypeDefinition(uint32_t index)
-    {
-        const Il2CppImage* image = _targetAssembly->image;
-        if (index >= image->typeCount)
-        {
-            return nullptr;
-        }
-
-        return (const Il2CppTypeDefinition*)il2cpp::vm::MetadataCache::GetAssemblyTypeHandle(image, index);
-    }
-
-    const Il2CppMethodDefinition* AOTMetadataImage::GetAOTMethodDefinition(uint32_t index)
-    {
-        const Il2CppImage* image = _targetAssembly->image;
-        // 对于 AOT 程序集，我们需要通过其他方式获取方法定义
-        // 这里简化实现，直接返回 nullptr
-        return nullptr;
-    }
-
-    const Il2CppFieldDefinition* AOTMetadataImage::GetAOTFieldDefinition(uint32_t index)
-    {
-        const Il2CppImage* image = _targetAssembly->image;
-        // 对于 AOT 程序集，我们需要通过其他方式获取字段定义
-        // 这里简化实现，直接返回 nullptr
-        return nullptr;
-    }
-
-    Il2CppGenericContainer* AOTMetadataImage::GetAOTGenericContainer(uint32_t index)
-    {
-        return (Il2CppGenericContainer*)il2cpp::vm::GlobalMetadata::GetGenericContainerFromIndex(index);
-    }
-
-    const MethodInfo* AOTMetadataImage::GetMethodInfoFromToken(uint32_t token, const Il2CppGenericContainer* klassContainer, const Il2CppGenericContainer* methodContainer, const Il2CppGenericContext* genericContext)
-    {
-        // 从 AOT 程序集获取方法信息
-        const Il2CppImage* image = _targetAssembly->image;
-        uint32_t methodIndex = DecodeTokenRowIndex(token);
-        
-        // 对于 AOT 程序集，简化实现
-        const Il2CppMethodDefinition* methodDef = nullptr;
-        if (!methodDef)
-        {
-            return nullptr;
-        }
-        
-        // 查找对应的 MethodInfo
-        for (uint32_t i = 0; i < image->typeCount; i++)
-        {
-            const Il2CppTypeDefinition* typeDef = (const Il2CppTypeDefinition*)il2cpp::vm::MetadataCache::GetAssemblyTypeHandle(image, i);
-            const Il2CppClass* klass = il2cpp::vm::Class::FromIl2CppType(il2cpp::vm::GlobalMetadata::GetIl2CppTypeFromIndex(typeDef->byvalTypeIndex), false);
-            
-            if (klass)
-            {
-                for (uint16_t j = 0; j < klass->method_count; j++)
-                {
-                    const MethodInfo* methodInfo = klass->methods[j];
-                    if ((const Il2CppMethodDefinition*)methodInfo->methodMetadataHandle == methodDef)
-                    {
-                        return methodInfo;
-                    }
-                }
-            }
-        }
-        
-        return nullptr;
-    }
-
-    const Il2CppType* AOTMetadataImage::GetIl2CppTypeFromToken(uint32_t token, const Il2CppGenericContainer* klassContainer, const Il2CppGenericContext* genericContext)
-    {
-        // 从 AOT 程序集获取类型信息
-        const Il2CppImage* image = _targetAssembly->image;
-        uint32_t typeIndex = DecodeTokenRowIndex(token);
-        
-        if (typeIndex >= image->typeCount)
-        {
-            return nullptr;
-        }
-        
-        const Il2CppTypeDefinition* typeDef = (const Il2CppTypeDefinition*)il2cpp::vm::MetadataCache::GetAssemblyTypeHandle(image, typeIndex);
-        if (!typeDef)
-        {
-            return nullptr;
-        }
-        
-        return il2cpp::vm::GlobalMetadata::GetIl2CppTypeFromIndex(typeDef->byvalTypeIndex);
-    }
-
-    void AOTMetadataImage::InitRuntimeMetadatas()
-    {
-        // AOT 元数据镜像不需要初始化运行时元数据
-        // 因为 AOT 程序集已经预编译，元数据已经可用
     }
 
 }

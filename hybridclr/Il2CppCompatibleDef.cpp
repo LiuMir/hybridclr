@@ -50,6 +50,18 @@ namespace hybridclr
 #endif
 			method->isInterpterImpl = true;
 		}
+		else
+		{
+			// 对于 AOT 方法，直接使用 IL2CPP 的原生方法指针
+			method->methodPointerCallByInterp = method->methodPointer;
+			method->virtualMethodPointerCallByInterp = method->virtualMethodPointer;
+			
+			// 确保 invoker_method 已设置
+			if (method->invoker_method == nullptr)
+			{
+				method->invoker_method = method->invoker_method;
+			}
+		}
 		return method->methodPointerCallByInterp;
 	}
 }

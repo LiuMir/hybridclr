@@ -98,44 +98,5 @@ namespace metadata
         static uint64_t GenerateGenericInstKey(const Il2CppType** types, uint32_t typeCount);
     };
 
-    // AOT 元数据镜像适配器
-    class AOTMetadataImage : public Image
-    {
-    public:
-        AOTMetadataImage(const Il2CppAssembly* assembly);
-        virtual ~AOTMetadataImage();
-        
-        // 实现 Image 接口
-        MethodBody* GetMethodBody(uint32_t token) override;
-        const Il2CppType* GetIl2CppTypeFromRawTypeDefIndex(uint32_t index) override;
-        Il2CppGenericContainer* GetGenericContainerByRawIndex(uint32_t index) override;
-        Il2CppGenericContainer* GetGenericContainerByTypeDefRawIndex(int32_t typeDefIndex) override;
-        const Il2CppMethodDefinition* GetMethodDefinitionFromRawIndex(uint32_t index) override;
-        void ReadFieldRefInfoFromFieldDefToken(uint32_t rowIndex, FieldRefInfo& ret) override;
-        const Il2CppType* GetModuleIl2CppType(uint32_t moduleRowIndex, uint32_t typeNamespace, uint32_t typeName, bool raiseExceptionIfNotFound) override;
-        const Il2CppType* ReadTypeFromResolutionScope(uint32_t scope, uint32_t typeNamespace, uint32_t typeName) override;
-        
-        // 实现 Image 接口的缺失方法
-        const MethodInfo* GetMethodInfoFromToken(uint32_t token, const Il2CppGenericContainer* klassContainer, const Il2CppGenericContainer* methodContainer, const Il2CppGenericContext* genericContext);
-        const Il2CppType* GetIl2CppTypeFromToken(uint32_t token, const Il2CppGenericContainer* klassContainer, const Il2CppGenericContext* genericContext);
-        
-        // 获取目标程序集
-        const Il2CppAssembly* GetTargetAssembly() const { return _targetAssembly; }
-        const Il2CppAssembly* GetAssembly() const { return _targetAssembly; }
-        
-        // 实现抽象方法
-        void InitRuntimeMetadatas() override;
-        const Il2CppImage* GetIl2CppImage() const override { return _targetAssembly->image; }
-        
-    private:
-        const Il2CppAssembly* _targetAssembly;
-        
-        // 从 AOT 元数据获取信息
-        const Il2CppTypeDefinition* GetAOTTypeDefinition(uint32_t index);
-        const Il2CppMethodDefinition* GetAOTMethodDefinition(uint32_t index);
-        const Il2CppFieldDefinition* GetAOTFieldDefinition(uint32_t index);
-        Il2CppGenericContainer* GetAOTGenericContainer(uint32_t index);
-    };
-
 }
 }

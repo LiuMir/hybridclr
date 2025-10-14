@@ -675,24 +675,58 @@ namespace metadata
 	{
 		Il2CppClass* klass = il2cpp::vm::Class::FromIl2CppType(type);
 		il2cpp::vm::Class::SetupMethods(klass);
-		void* iter = nullptr;
-		for (const MethodInfo* cur = nullptr; (cur = il2cpp::vm::Class::GetMethods(klass, &iter)) != nullptr; )
-		{
-			if (!cur->is_inflated)
+		
+    // 对于 AOT 类型，通过 token 匹配方法
+    // 因为 methodMetadataHandle 指针可能不同，即使表示同一个方法
+    if (!IsInterpreterType(klass))
+    {
+        uint32_t targetToken = methodDef->token;
+        const char* methodName = il2cpp::vm::GlobalMetadata::GetStringFromIndex(methodDef->nameIndex);
+        
+        // 调试信息已移除，直接进行方法查找
+			
+			for (uint16_t i = 0; i < klass->method_count; i++)
 			{
-				if ((const Il2CppMethodDefinition*)cur->methodMetadataHandle == methodDef)
+				const MethodInfo* cur = klass->methods[i];
+				if (cur && cur->token == targetToken)
 				{
 					return cur;
 				}
 			}
-			else
+			
+			// 如果 token 匹配失败，尝试通过方法名匹配
+			for (uint16_t i = 0; i < klass->method_count; i++)
 			{
-				if ((const Il2CppMethodDefinition*)cur->genericMethod->methodDefinition->methodMetadataHandle == methodDef)
+				const MethodInfo* cur = klass->methods[i];
+				if (cur && std::strcmp(cur->name, methodName) == 0)
 				{
 					return cur;
 				}
 			}
 		}
+		else
+		{
+			// 对于解释器类型，使用原有的 methodMetadataHandle 比较
+			void* iter = nullptr;
+			for (const MethodInfo* cur = nullptr; (cur = il2cpp::vm::Class::GetMethods(klass, &iter)) != nullptr; )
+			{
+				if (!cur->is_inflated)
+				{
+					if ((const Il2CppMethodDefinition*)cur->methodMetadataHandle == methodDef)
+					{
+						return cur;
+					}
+				}
+				else
+				{
+					if ((const Il2CppMethodDefinition*)cur->genericMethod->methodDefinition->methodMetadataHandle == methodDef)
+					{
+						return cur;
+					}
+				}
+			}
+		}
+		
 		RaiseMethodNotFindException(type, il2cpp::vm::GlobalMetadata::GetStringFromIndex(methodDef->nameIndex));
 		return nullptr;
 	}

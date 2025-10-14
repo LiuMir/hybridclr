@@ -953,20 +953,23 @@ namespace metadata
         {
             const Il2CppTypeDefinition* typeDef = GetUnderlyingTypeDefinition(type);
             const Il2CppGenericContainer* klassGenericContainer = GetGenericContainerFromIl2CppType(type);
-            const char* typeName = il2cpp::vm::GlobalMetadata::GetStringFromIndex(typeDef->nameIndex);
-            for (uint32_t i = 0; i < typeDef->method_count; i++)
+            
+        // 使用原有的流程，但修复 GetMethodInfoFromMethodDef 中的指针比较问题
+        const char* typeName = il2cpp::vm::GlobalMetadata::GetStringFromIndex(typeDef->nameIndex);
+        for (uint32_t i = 0; i < typeDef->method_count; i++)
+        {
+            const Il2CppMethodDefinition* methodDef = il2cpp::vm::GlobalMetadata::GetMethodDefinitionFromIndex(typeDef->methodStart + i);
+            const char* methodName = il2cpp::vm::GlobalMetadata::GetStringFromIndex(methodDef->nameIndex);
+            IL2CPP_ASSERT((genericInstantiation ? genericInstantiation->type_argc : 0) == resolveSig.genericParamCount);
+            if (std::strcmp(resolveMethodName, methodName) == 0 && IsMatchMethodSig(methodDef, resolveSig, klassGenericContainer))
             {
-                const Il2CppMethodDefinition* methodDef = il2cpp::vm::GlobalMetadata::GetMethodDefinitionFromIndex(typeDef->methodStart + i);
-                const char* methodName = il2cpp::vm::GlobalMetadata::GetStringFromIndex(methodDef->nameIndex);
-                IL2CPP_ASSERT((genericInstantiation ? genericInstantiation->type_argc : 0) == resolveSig.genericParamCount);
-                if (std::strcmp(resolveMethodName, methodName) == 0 && IsMatchMethodSig(methodDef, resolveSig, klassGenericContainer))
-                {
-                    return GetMethodInfo(type, methodDef, genericInstantiation, genericContext);
-                }
+                return GetMethodInfo(type, methodDef, genericInstantiation, genericContext);
             }
+        }
         }
         else
         {
+            // 处理数组类型
             IL2CPP_ASSERT(genericInstantiation == nullptr);
             Il2CppClass* arrayKlass = il2cpp::vm::Class::FromIl2CppType(type);
             il2cpp::vm::Class::SetupMethods(arrayKlass);
