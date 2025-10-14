@@ -39,6 +39,7 @@ namespace metadata
     // 统一元数据提供者
     class UnifiedMetadataProvider
     {
+        friend class GenericMetadataFactory;
     public:
         // 获取程序集对应的元数据镜像
         static Image* GetImageForAssembly(const Il2CppAssembly* ass);
@@ -115,12 +116,15 @@ namespace metadata
         const Il2CppType* ReadTypeFromResolutionScope(uint32_t scope, uint32_t typeNamespace, uint32_t typeName) override;
         
         // 实现 Image 接口的缺失方法
-        const MethodInfo* GetMethodInfoFromToken(uint32_t token, const Il2CppGenericContainer* klassContainer, const Il2CppGenericContainer* methodContainer, const Il2CppGenericContext* genericContext) override;
-        const Il2CppType* GetIl2CppTypeFromToken(uint32_t token, const Il2CppGenericContainer* klassContainer, const Il2CppGenericContext* genericContext) override;
+        const MethodInfo* GetMethodInfoFromToken(uint32_t token, const Il2CppGenericContainer* klassContainer, const Il2CppGenericContainer* methodContainer, const Il2CppGenericContext* genericContext);
+        const Il2CppType* GetIl2CppTypeFromToken(uint32_t token, const Il2CppGenericContainer* klassContainer, const Il2CppGenericContext* genericContext);
         
         // 获取目标程序集
         const Il2CppAssembly* GetTargetAssembly() const { return _targetAssembly; }
-        const Il2CppAssembly* GetAssembly() const override { return _targetAssembly; }
+        const Il2CppAssembly* GetAssembly() const { return _targetAssembly; }
+        
+        // 实现抽象方法
+        void InitRuntimeMetadatas() override;
         
     private:
         const Il2CppAssembly* _targetAssembly;
