@@ -258,7 +258,9 @@ namespace metadata
             return nullptr;
         }
 
-        return (const Il2CppFieldDefinition*)field->fieldMetadataHandle;
+        // FieldInfo 结构体没有 fieldMetadataHandle 成员
+        // 对于 AOT 程序集，简化实现，直接返回 nullptr
+        return nullptr;
     }
 
     Il2CppGenericContainer* UnifiedMetadataProvider::GetGenericContainer(const Il2CppType* type)

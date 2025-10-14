@@ -125,6 +125,7 @@ namespace metadata
         
         // 实现抽象方法
         void InitRuntimeMetadatas() override;
+        const Il2CppImage* GetIl2CppImage() const override { return _targetAssembly->image; }
         
     private:
         const Il2CppAssembly* _targetAssembly;
