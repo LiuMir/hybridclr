@@ -316,12 +316,6 @@ namespace metadata
         hybridclr::metadata::TableType tableType = DecodeTokenTableType(token);
         uint32_t rowIndex = DecodeTokenRowIndex(token);
         
-        // 调试信息：显示 token 解析结果
-        std::string debugMsg1 = "ResolveAOTMethodFromToken: token=0x" + std::to_string(token) + 
-                               ", tableType=" + std::to_string((int)tableType) + 
-                               ", rowIndex=" + std::to_string(rowIndex);
-        il2cpp::vm::Exception::Raise(il2cpp::vm::Exception::GetNotSupportedException(debugMsg1.c_str()));
-        
         if (tableType == hybridclr::metadata::TableType::METHOD || tableType == hybridclr::metadata::TableType::MEMBERREF)
         {
             // 对于 METHOD 和 MEMBERREF，处理逻辑完全相同
@@ -352,28 +346,15 @@ namespace metadata
             
             il2cpp::vm::Class::SetupMethods(klass);
             
-            // 调试信息：显示类信息
-            std::string debugMsg5 = "ResolveAOTMethodFromToken: Searching in class " + std::string(klass->name) + 
-                                   ", method_count=" + std::to_string(klass->method_count);
-            il2cpp::vm::Exception::Raise(il2cpp::vm::Exception::GetNotSupportedException(debugMsg5.c_str()));
-            
             // 通过 token 匹配方法
             for (uint16_t i = 0; i < klass->method_count; i++)
             {
                 const MethodInfo* method = klass->methods[i];
                 if (method)
                 {
-                    // 调试信息：显示每个方法的 token
-                    std::string debugMsg6 = "ResolveAOTMethodFromToken: Method[" + std::to_string(i) + "]: " + 
-                                           std::string(method->name) + ", token=0x" + std::to_string(method->token);
-                    il2cpp::vm::Exception::Raise(il2cpp::vm::Exception::GetNotSupportedException(debugMsg6.c_str()));
                     
                     if (method->token == token)
                     {
-                        // 调试信息：找到匹配的方法
-                        std::string debugMsg7 = "ResolveAOTMethodFromToken: Found method by token: " + std::string(method->name);
-                        il2cpp::vm::Exception::Raise(il2cpp::vm::Exception::GetNotSupportedException(debugMsg7.c_str()));
-                        
                         // 处理泛型方法实例化
                         if (methodContainer && !method->is_inflated)
                         {
@@ -418,26 +399,15 @@ namespace metadata
             return nullptr;
         }
 
-        // 调试信息：显示 image 信息（使用 printf 避免程序崩溃）
-        printf("GetMethodInfoFromToken: image=%llu, token=0x%x, isInterpreter=%s\n", 
-               (uint64_t)image, token, IsInterpreterImage(image->GetIl2CppImage()) ? "true" : "false");
-
         // 直接使用 IsInterpreterImage 判断
         if (IsInterpreterImage(image->GetIl2CppImage()))
-        {
-            printf("GetMethodInfoFromToken: Using INTERPRETER path for token=0x%x\n", token);
-            
+        {            
             // 调试信息：显示 token 解析结果
             hybridclr::metadata::TableType tableType = DecodeTokenTableType(token);
-            uint32_t rowIndex = DecodeTokenRowIndex(token);
-            printf("GetMethodInfoFromToken: Token analysis - tableType=%d, rowIndex=%u\n", (int)tableType, rowIndex);
-            
+            uint32_t rowIndex = DecodeTokenRowIndex(token);            
             // 使用传入的 tokenCache，实现真正的缓存效果
             const MethodInfo* result = image->GetMethodInfoFromToken(tokenCache, token, klassContainer, methodContainer, genericContext);
-            
-            // 调试信息：显示结果
-            printf("GetMethodInfoFromToken: INTERPRETER result=%p\n", result);
-            
+                      
             return result;
         }
         else

@@ -680,10 +680,8 @@ namespace metadata
     // 因为 methodMetadataHandle 指针可能不同，即使表示同一个方法
     if (!IsInterpreterType(klass))
     {
-        uint32_t targetToken = methodDef->token;
-        const char* methodName = il2cpp::vm::GlobalMetadata::GetStringFromIndex(methodDef->nameIndex);
-        
-        // 调试信息已移除，直接进行方法查找
+			uint32_t targetToken = methodDef->token;
+			const char* methodName = il2cpp::vm::GlobalMetadata::GetStringFromIndex(methodDef->nameIndex);        
 			
 			for (uint16_t i = 0; i < klass->method_count; i++)
 			{

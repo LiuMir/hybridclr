@@ -948,24 +948,22 @@ namespace metadata
     }
 
     const MethodInfo* Image::ResolveMethodInfo(const Il2CppType* type, const char* resolveMethodName, const MethodRefSig& resolveSig, const Il2CppGenericInst* genericInstantiation, const Il2CppGenericContext* genericContext)
-    {
+    {        
         if (type->type != IL2CPP_TYPE_ARRAY)
         {
             const Il2CppTypeDefinition* typeDef = GetUnderlyingTypeDefinition(type);
             const Il2CppGenericContainer* klassGenericContainer = GetGenericContainerFromIl2CppType(type);
-            
-        // 使用原有的流程，但修复 GetMethodInfoFromMethodDef 中的指针比较问题
-        const char* typeName = il2cpp::vm::GlobalMetadata::GetStringFromIndex(typeDef->nameIndex);
-        for (uint32_t i = 0; i < typeDef->method_count; i++)
-        {
-            const Il2CppMethodDefinition* methodDef = il2cpp::vm::GlobalMetadata::GetMethodDefinitionFromIndex(typeDef->methodStart + i);
-            const char* methodName = il2cpp::vm::GlobalMetadata::GetStringFromIndex(methodDef->nameIndex);
-            IL2CPP_ASSERT((genericInstantiation ? genericInstantiation->type_argc : 0) == resolveSig.genericParamCount);
-            if (std::strcmp(resolveMethodName, methodName) == 0 && IsMatchMethodSig(methodDef, resolveSig, klassGenericContainer))
+            const char* typeName = il2cpp::vm::GlobalMetadata::GetStringFromIndex(typeDef->nameIndex);
+            for (uint32_t i = 0; i < typeDef->method_count; i++)
             {
-                return GetMethodInfo(type, methodDef, genericInstantiation, genericContext);
-            }
-        }
+                const Il2CppMethodDefinition* methodDef = il2cpp::vm::GlobalMetadata::GetMethodDefinitionFromIndex(typeDef->methodStart + i);
+                const char* methodName = il2cpp::vm::GlobalMetadata::GetStringFromIndex(methodDef->nameIndex);
+                IL2CPP_ASSERT((genericInstantiation ? genericInstantiation->type_argc : 0) == resolveSig.genericParamCount);
+                if (std::strcmp(resolveMethodName, methodName) == 0 && IsMatchMethodSig(methodDef, resolveSig, klassGenericContainer))
+                {
+                    return GetMethodInfo(type, methodDef, genericInstantiation, genericContext);
+                }
+            }        
         }
         else
         {
