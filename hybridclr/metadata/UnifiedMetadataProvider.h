@@ -68,13 +68,6 @@ namespace metadata
             const Il2CppGenericContainer* methodContainer,
             const Il2CppGenericContext* genericContext);
         
-        // 从 token 获取方法信息（兼容版本：保持向后兼容）
-        static const MethodInfo* GetMethodInfoFromToken(
-            const Il2CppAssembly* ass,
-            uint32_t token,
-            const Il2CppGenericContainer* klassContainer,
-            const Il2CppGenericContainer* methodContainer,
-            const Il2CppGenericContext* genericContext);
         
         // 从 token 获取类型信息
         static const Il2CppType* GetTypeFromToken(

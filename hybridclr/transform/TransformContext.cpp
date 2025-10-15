@@ -3042,9 +3042,9 @@ else \
 			{
 				uint32_t token = (uint32_t)GetI4LittleEndian(ip + 1);
 				ip += 5;
-				// 使用统一元数据提供者获取方法信息
-				shareMethod = hybridclr::metadata::UnifiedMetadataProvider::GetMethodInfoFromToken(
-					il2cpp::vm::Image::GetAssembly(image->GetIl2CppImage()), token, klassContainer, methodContainer, genericContext);
+				// 使用统一元数据提供者获取方法信息（优化版本：直接传入 image 和 tokenCache）
+				shareMethod = const_cast<MethodInfo*>(hybridclr::metadata::UnifiedMetadataProvider::GetMethodInfoFromToken(
+					image, tokenCache, token, klassContainer, methodContainer, genericContext));
 			}
 		LabelCallVir:
 			{
@@ -4147,9 +4147,9 @@ else \
 				uint32_t token = (uint32_t)GetI4LittleEndian(ip + 1);
 				ip += 5;
 				// TODO token cache optimistic
-				// 使用统一元数据提供者获取方法信息
+				// 使用统一元数据提供者获取方法信息（优化版本：直接传入 image 和 tokenCache）
 				shareMethod = const_cast<MethodInfo*>(hybridclr::metadata::UnifiedMetadataProvider::GetMethodInfoFromToken(
-					il2cpp::vm::Image::GetAssembly(image->GetIl2CppImage()), token, klassContainer, methodContainer, genericContext));
+					image, tokenCache, token, klassContainer, methodContainer, genericContext));
 				IL2CPP_ASSERT(shareMethod);
 				IL2CPP_ASSERT(!std::strcmp(shareMethod->name, ".ctor"));
 				IL2CPP_ASSERT(hybridclr::metadata::IsInstanceMethod(shareMethod));
@@ -5338,9 +5338,9 @@ ir->ele = ele.locOffset;
 				{
 					IL2CPP_ASSERT(evalStackTop > 0);
 					uint32_t methodToken = (uint32_t)GetI4LittleEndian(ip + 2);
-					// 使用统一元数据提供者获取方法信息
+					// 使用统一元数据提供者获取方法信息（优化版本：直接传入 image 和 tokenCache）
 					MethodInfo* methodInfo = const_cast<MethodInfo*>(hybridclr::metadata::UnifiedMetadataProvider::GetMethodInfoFromToken(
-						il2cpp::vm::Image::GetAssembly(image->GetIl2CppImage()), methodToken, klassContainer, methodContainer, genericContext));
+						image, tokenCache, methodToken, klassContainer, methodContainer, genericContext));
 					IL2CPP_ASSERT(methodInfo);
 
 					CreateAddIR(ir, LdvirftnVarVar);
@@ -5609,9 +5609,9 @@ ir->ele = ele.locOffset;
 					ip += 5;
 
 					// TODO token cache optimistic
-					// 使用统一元数据提供者获取方法信息
+					// 使用统一元数据提供者获取方法信息（优化版本：直接传入 image 和 tokenCache）
 					shareMethod = const_cast<MethodInfo*>(hybridclr::metadata::UnifiedMetadataProvider::GetMethodInfoFromToken(
-						il2cpp::vm::Image::GetAssembly(image->GetIl2CppImage()), methodToken, klassContainer, methodContainer, genericContext));
+						image, tokenCache, methodToken, klassContainer, methodContainer, genericContext));
 					IL2CPP_ASSERT(shareMethod);
 
 

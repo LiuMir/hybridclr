@@ -15,6 +15,12 @@
 #include <unordered_map>
 #include <cstring>
 
+// 辅助函数：解码 token 获取表类型
+static hybridclr::metadata::TableType DecodeTokenTableType(uint32_t token)
+{
+    return (hybridclr::metadata::TableType)(token >> 24);
+}
+
 // 辅助函数：解码 token 获取行索引
 static uint32_t DecodeTokenRowIndex(uint32_t token)
 {
@@ -307,7 +313,7 @@ namespace metadata
         const Il2CppGenericContainer* methodContainer,
         const Il2CppGenericContext* genericContext)
     {
-        TableType tableType = DecodeTokenTableType(token);
+        hybridclr::metadata::TableType tableType = DecodeTokenTableType(token);
         uint32_t rowIndex = DecodeTokenRowIndex(token);
         
         // 调试信息：显示 token 解析结果
@@ -316,7 +322,7 @@ namespace metadata
                                ", rowIndex=" + std::to_string(rowIndex);
         il2cpp::vm::Exception::Raise(il2cpp::vm::Exception::GetNotSupportedException(debugMsg1.c_str()));
         
-        if (tableType == TableType::METHOD || tableType == TableType::MEMBERREF)
+        if (tableType == hybridclr::metadata::TableType::METHOD || tableType == hybridclr::metadata::TableType::MEMBERREF)
         {
             // 对于 METHOD 和 MEMBERREF，处理逻辑完全相同
             // 都是通过 GlobalMetadata 获取方法定义，然后通过 token 匹配
@@ -407,56 +413,42 @@ namespace metadata
     {
         if (!image)
         {
+            std::string debugMsg = "GetMethodInfoFromToken: image is nullptr";
+            il2cpp::vm::Exception::Raise(il2cpp::vm::Exception::GetNotSupportedException(debugMsg.c_str()));
             return nullptr;
         }
+
+        // 调试信息：显示 image 信息（使用 printf 避免程序崩溃）
+        printf("GetMethodInfoFromToken: image=%llu, token=0x%x, isInterpreter=%s\n", 
+               (uint64_t)image, token, IsInterpreterImage(image->GetIl2CppImage()) ? "true" : "false");
 
         // 直接使用 IsInterpreterImage 判断
         if (IsInterpreterImage(image->GetIl2CppImage()))
         {
+            printf("GetMethodInfoFromToken: Using INTERPRETER path for token=0x%x\n", token);
+            
+            // 调试信息：显示 token 解析结果
+            hybridclr::metadata::TableType tableType = DecodeTokenTableType(token);
+            uint32_t rowIndex = DecodeTokenRowIndex(token);
+            printf("GetMethodInfoFromToken: Token analysis - tableType=%d, rowIndex=%u\n", (int)tableType, rowIndex);
+            
             // 使用传入的 tokenCache，实现真正的缓存效果
-            return image->GetMethodInfoFromToken(tokenCache, token, klassContainer, methodContainer, genericContext);
+            const MethodInfo* result = image->GetMethodInfoFromToken(tokenCache, token, klassContainer, methodContainer, genericContext);
+            
+            // 调试信息：显示结果
+            printf("GetMethodInfoFromToken: INTERPRETER result=%p\n", result);
+            
+            return result;
         }
         else
         {
+            printf("GetMethodInfoFromToken: Using AOT path for token=0x%x\n", token);
+            
             // 对于 AOT 程序集，使用公共的解析函数
             return ResolveAOTMethodFromToken(token, klassContainer, methodContainer, genericContext);
         }
     }
 
-    // 兼容版本：保持向后兼容
-    const MethodInfo* UnifiedMetadataProvider::GetMethodInfoFromToken(
-        const Il2CppAssembly* ass,
-        uint32_t token,
-        const Il2CppGenericContainer* klassContainer,
-        const Il2CppGenericContainer* methodContainer,
-        const Il2CppGenericContext* genericContext)
-    {
-        if (!ass)
-        {
-            return nullptr;
-        }
-
-        // 对于解释器程序集，使用 Image 对象解析 token
-        if (IsInterpreterAssembly(ass))
-        {
-            Image* image = MetadataModule::GetImage(ass->image);
-            if (!image)
-            {
-                return nullptr;
-            }
-
-            // 创建一个临时的 token 缓存
-            Token2RuntimeHandleMap tokenCache;
-            return image->GetMethodInfoFromToken(tokenCache, token, klassContainer, methodContainer, genericContext);
-        }
-        else
-        {
-            // 对于 AOT 程序集，使用公共的解析函数
-            return ResolveAOTMethodFromToken(token, klassContainer, methodContainer, genericContext);
-        }
-
-        return nullptr;
-    }
 
     const Il2CppType* UnifiedMetadataProvider::GetTypeFromToken(
         const Il2CppAssembly* ass,
@@ -479,23 +471,23 @@ namespace metadata
             }
 
             // 使用 ReadTypeFromToken 方法
-            TableType tableType = (TableType)(token >> 24);
+            hybridclr::metadata::TableType tableType = (hybridclr::metadata::TableType)(token >> 24);
             uint32_t rowIndex = token & 0x00FFFFFF;
             return image->ReadTypeFromToken(klassContainer, nullptr, tableType, rowIndex);
         }
         else
         {
             // 对于 AOT 程序集，直接使用 IL2CPP 的 GlobalMetadata 解析
-            TableType tableType = DecodeTokenTableType(token);
+            hybridclr::metadata::TableType tableType = DecodeTokenTableType(token);
             uint32_t rowIndex = DecodeTokenRowIndex(token);
             
-            if (tableType == TableType::TYPEDEF)
+            if (tableType == hybridclr::metadata::TableType::TYPEDEF)
             {
                 const Il2CppTypeDefinition* typeDef = (const Il2CppTypeDefinition*)il2cpp::vm::GlobalMetadata::GetTypeHandleFromIndex(rowIndex);
                 Il2CppClass* klass = il2cpp::vm::GlobalMetadata::GetTypeInfoFromHandle((Il2CppMetadataTypeHandle)typeDef);
                 return &klass->byval_arg;
             }
-            else if (tableType == TableType::TYPESPEC)
+            else if (tableType == hybridclr::metadata::TableType::TYPESPEC)
             {
                 // 对于泛型类型，需要解析类型规范
                 return il2cpp::vm::GlobalMetadata::GetIl2CppTypeFromIndex(token);
