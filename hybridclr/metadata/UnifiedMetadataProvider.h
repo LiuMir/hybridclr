@@ -59,7 +59,16 @@ namespace metadata
         // 获取方法体
         static MethodBody* GetMethodBody(const MethodInfo* method);
         
-        // 从 token 获取方法信息
+        // 从 token 获取方法信息（优化版本：直接接收 image 和 tokenCache）
+        static const MethodInfo* GetMethodInfoFromToken(
+            Image* image,
+            Token2RuntimeHandleMap& tokenCache,
+            uint32_t token,
+            const Il2CppGenericContainer* klassContainer,
+            const Il2CppGenericContainer* methodContainer,
+            const Il2CppGenericContext* genericContext);
+        
+        // 从 token 获取方法信息（兼容版本：保持向后兼容）
         static const MethodInfo* GetMethodInfoFromToken(
             const Il2CppAssembly* ass,
             uint32_t token,

@@ -300,6 +300,130 @@ namespace metadata
         return nullptr;
     }
 
+    // 私有辅助函数：处理 AOT 程序集的方法解析
+    static const MethodInfo* ResolveAOTMethodFromToken(
+        uint32_t token,
+        const Il2CppGenericContainer* klassContainer,
+        const Il2CppGenericContainer* methodContainer,
+        const Il2CppGenericContext* genericContext)
+    {
+        TableType tableType = DecodeTokenTableType(token);
+        uint32_t rowIndex = DecodeTokenRowIndex(token);
+        
+        // 调试信息：显示 token 解析结果
+        std::string debugMsg1 = "ResolveAOTMethodFromToken: token=0x" + std::to_string(token) + 
+                               ", tableType=" + std::to_string((int)tableType) + 
+                               ", rowIndex=" + std::to_string(rowIndex);
+        il2cpp::vm::Exception::Raise(il2cpp::vm::Exception::GetNotSupportedException(debugMsg1.c_str()));
+        
+        if (tableType == TableType::METHOD || tableType == TableType::MEMBERREF)
+        {
+            // 对于 METHOD 和 MEMBERREF，处理逻辑完全相同
+            // 都是通过 GlobalMetadata 获取方法定义，然后通过 token 匹配
+            const Il2CppMethodDefinition* methodDef = il2cpp::vm::GlobalMetadata::GetMethodDefinitionFromIndex(rowIndex);
+            if (!methodDef)
+            {
+                std::string debugMsg2 = "ResolveAOTMethodFromToken: Failed to get methodDef for rowIndex=" + std::to_string(rowIndex);
+                il2cpp::vm::Exception::Raise(il2cpp::vm::Exception::GetNotSupportedException(debugMsg2.c_str()));
+                return nullptr;
+            }
+            
+            const Il2CppTypeDefinition* typeDef = (const Il2CppTypeDefinition*)il2cpp::vm::GlobalMetadata::GetTypeHandleFromIndex(methodDef->declaringType);
+            if (!typeDef)
+            {
+                std::string debugMsg3 = "ResolveAOTMethodFromToken: Failed to get typeDef for declaringType=" + std::to_string(methodDef->declaringType);
+                il2cpp::vm::Exception::Raise(il2cpp::vm::Exception::GetNotSupportedException(debugMsg3.c_str()));
+                return nullptr;
+            }
+            
+            Il2CppClass* klass = il2cpp::vm::GlobalMetadata::GetTypeInfoFromHandle((Il2CppMetadataTypeHandle)typeDef);
+            if (!klass)
+            {
+                std::string debugMsg4 = "ResolveAOTMethodFromToken: Failed to get klass for typeDef";
+                il2cpp::vm::Exception::Raise(il2cpp::vm::Exception::GetNotSupportedException(debugMsg4.c_str()));
+                return nullptr;
+            }
+            
+            il2cpp::vm::Class::SetupMethods(klass);
+            
+            // 调试信息：显示类信息
+            std::string debugMsg5 = "ResolveAOTMethodFromToken: Searching in class " + std::string(klass->name) + 
+                                   ", method_count=" + std::to_string(klass->method_count);
+            il2cpp::vm::Exception::Raise(il2cpp::vm::Exception::GetNotSupportedException(debugMsg5.c_str()));
+            
+            // 通过 token 匹配方法
+            for (uint16_t i = 0; i < klass->method_count; i++)
+            {
+                const MethodInfo* method = klass->methods[i];
+                if (method)
+                {
+                    // 调试信息：显示每个方法的 token
+                    std::string debugMsg6 = "ResolveAOTMethodFromToken: Method[" + std::to_string(i) + "]: " + 
+                                           std::string(method->name) + ", token=0x" + std::to_string(method->token);
+                    il2cpp::vm::Exception::Raise(il2cpp::vm::Exception::GetNotSupportedException(debugMsg6.c_str()));
+                    
+                    if (method->token == token)
+                    {
+                        // 调试信息：找到匹配的方法
+                        std::string debugMsg7 = "ResolveAOTMethodFromToken: Found method by token: " + std::string(method->name);
+                        il2cpp::vm::Exception::Raise(il2cpp::vm::Exception::GetNotSupportedException(debugMsg7.c_str()));
+                        
+                        // 处理泛型方法实例化
+                        if (methodContainer && !method->is_inflated)
+                        {
+                            Il2CppGenericContext finalGenericContext = { 
+                                genericContext ? genericContext->class_inst : nullptr, 
+                                (const Il2CppGenericInst*)methodContainer 
+                            };
+                            return il2cpp::metadata::GenericMetadata::Inflate(method, &finalGenericContext);
+                        }
+                        return method;
+                    }
+                }
+            }
+            
+            // 调试信息：没有找到匹配的方法
+            std::string debugMsg8 = "ResolveAOTMethodFromToken: No method found with token=0x" + std::to_string(token);
+            il2cpp::vm::Exception::Raise(il2cpp::vm::Exception::GetNotSupportedException(debugMsg8.c_str()));
+        }
+        else
+        {
+            // 调试信息：不支持的 tableType
+            std::string debugMsg9 = "ResolveAOTMethodFromToken: Unsupported tableType=" + std::to_string((int)tableType);
+            il2cpp::vm::Exception::Raise(il2cpp::vm::Exception::GetNotSupportedException(debugMsg9.c_str()));
+        }
+
+        return nullptr;
+    }
+
+    // 优化版本：直接接收 image 和 tokenCache
+    const MethodInfo* UnifiedMetadataProvider::GetMethodInfoFromToken(
+        Image* image,
+        Token2RuntimeHandleMap& tokenCache,
+        uint32_t token,
+        const Il2CppGenericContainer* klassContainer,
+        const Il2CppGenericContainer* methodContainer,
+        const Il2CppGenericContext* genericContext)
+    {
+        if (!image)
+        {
+            return nullptr;
+        }
+
+        // 直接使用 IsInterpreterImage 判断
+        if (IsInterpreterImage(image->GetIl2CppImage()))
+        {
+            // 使用传入的 tokenCache，实现真正的缓存效果
+            return image->GetMethodInfoFromToken(tokenCache, token, klassContainer, methodContainer, genericContext);
+        }
+        else
+        {
+            // 对于 AOT 程序集，使用公共的解析函数
+            return ResolveAOTMethodFromToken(token, klassContainer, methodContainer, genericContext);
+        }
+    }
+
+    // 兼容版本：保持向后兼容
     const MethodInfo* UnifiedMetadataProvider::GetMethodInfoFromToken(
         const Il2CppAssembly* ass,
         uint32_t token,
@@ -327,70 +451,8 @@ namespace metadata
         }
         else
         {
-            // 对于 AOT 程序集，直接使用 IL2CPP 的 GlobalMetadata 解析
-            TableType tableType = DecodeTokenTableType(token);
-            uint32_t rowIndex = DecodeTokenRowIndex(token);
-            
-            if (tableType == TableType::METHOD)
-            {
-                const Il2CppMethodDefinition* methodDef = il2cpp::vm::GlobalMetadata::GetMethodDefinitionFromIndex(rowIndex);
-                const Il2CppTypeDefinition* typeDef = (const Il2CppTypeDefinition*)il2cpp::vm::GlobalMetadata::GetTypeHandleFromIndex(methodDef->declaringType);
-                Il2CppClass* klass = il2cpp::vm::GlobalMetadata::GetTypeInfoFromHandle((Il2CppMetadataTypeHandle)typeDef);
-                il2cpp::vm::Class::SetupMethods(klass);
-                
-                // 通过 token 匹配方法
-                for (uint16_t i = 0; i < klass->method_count; i++)
-                {
-                    const MethodInfo* method = klass->methods[i];
-                    if (method)
-                    {
-                        if (method->token == token)
-                        {
-                            // 处理泛型方法实例化
-                            if (methodContainer && !method->is_inflated)
-                            {
-                                Il2CppGenericContext finalGenericContext = { 
-                                    genericContext ? genericContext->class_inst : nullptr, 
-                                    (const Il2CppGenericInst*)methodContainer 
-                                };
-                                return il2cpp::metadata::GenericMetadata::Inflate(method, &finalGenericContext);
-                            }
-                            return method;
-                        }
-                    }
-                }
-            }
-            else if (tableType == TableType::MEMBERREF)
-            {
-                // 对于 MemberRef，需要解析方法引用
-                // 使用 IL2CPP 的现有机制来解析
-                const Il2CppMethodDefinition* methodDef = il2cpp::vm::GlobalMetadata::GetMethodDefinitionFromIndex(rowIndex);
-                const Il2CppTypeDefinition* typeDef = (const Il2CppTypeDefinition*)il2cpp::vm::GlobalMetadata::GetTypeHandleFromIndex(methodDef->declaringType);
-                Il2CppClass* klass = il2cpp::vm::GlobalMetadata::GetTypeInfoFromHandle((Il2CppMetadataTypeHandle)typeDef);
-                il2cpp::vm::Class::SetupMethods(klass);
-                
-                // 通过 token 匹配方法
-                for (uint16_t i = 0; i < klass->method_count; i++)
-                {
-                    const MethodInfo* method = klass->methods[i];
-                    if (method)
-                    {
-                        if (method->token == token)
-                        {
-                            // 处理泛型方法实例化
-                            if (methodContainer && !method->is_inflated)
-                            {
-                                Il2CppGenericContext finalGenericContext = { 
-                                    genericContext ? genericContext->class_inst : nullptr, 
-                                    (const Il2CppGenericInst*)methodContainer 
-                                };
-                                return il2cpp::metadata::GenericMetadata::Inflate(method, &finalGenericContext);
-                            }
-                            return method;
-                        }
-                    }
-                }
-            }
+            // 对于 AOT 程序集，使用公共的解析函数
+            return ResolveAOTMethodFromToken(token, klassContainer, methodContainer, genericContext);
         }
 
         return nullptr;

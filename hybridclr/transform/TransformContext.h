@@ -162,6 +162,10 @@ namespace transform
 		int32_t totalArgLocalSize;
 		bool initLocals;
 
+		// Token 缓存，用于优化方法解析性能
+		// 初始容量设为 64，避免频繁扩容，提升性能
+		Token2RuntimeHandleMap tokenCache{64};
+
 	public:
 
 		TransformContext(hybridclr::metadata::Image* image, const MethodInfo* methodInfo, metadata::MethodBody& body, TemporaryMemoryArena& pool, il2cpp::utils::dynamic_array<uint64_t>& resolveDatas);

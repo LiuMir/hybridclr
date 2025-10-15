@@ -2858,9 +2858,9 @@ else \
 			{
 				uint32_t token = (uint32_t)GetI4LittleEndian(ip + 1);
 				ip += 5;
-				// 使用统一元数据提供者获取方法信息
+				// 使用统一元数据提供者获取方法信息（优化版本：直接传入 image 和 tokenCache）
 				shareMethod = const_cast<MethodInfo*>(hybridclr::metadata::UnifiedMetadataProvider::GetMethodInfoFromToken(
-					il2cpp::vm::Image::GetAssembly(image->GetIl2CppImage()), token, klassContainer, methodContainer, genericContext));
+					image, tokenCache, token, klassContainer, methodContainer, genericContext));
 				IL2CPP_ASSERT(shareMethod);
 			}
 
@@ -5323,9 +5323,9 @@ ir->ele = ele.locOffset;
 				case OpcodeValue::LDFTN:
 				{
 					uint32_t methodToken = (uint32_t)GetI4LittleEndian(ip + 2);
-					// 使用统一元数据提供者获取方法信息
+					// 使用统一元数据提供者获取方法信息（优化版本：直接传入 image 和 tokenCache）
 					MethodInfo* methodInfo = const_cast<MethodInfo*>(hybridclr::metadata::UnifiedMetadataProvider::GetMethodInfoFromToken(
-						il2cpp::vm::Image::GetAssembly(image->GetIl2CppImage()), methodToken, klassContainer, methodContainer, genericContext));
+						image, tokenCache, methodToken, klassContainer, methodContainer, genericContext));
 					IL2CPP_ASSERT(methodInfo);
 					CreateAddIR(ir, LdcVarConst_8);
 					ir->dst = GetEvalStackNewTopOffset();
